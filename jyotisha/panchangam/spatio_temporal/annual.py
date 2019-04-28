@@ -67,14 +67,15 @@ class Panchangam(common.JsonObject):
         self.tithi_sunrise = [None] * temporal.MAX_SZ
         self.nakshatram_data = [None] * temporal.MAX_SZ
         self.nakshatram_sunrise = [None] * temporal.MAX_SZ
-        self.yogam_data = [None] * temporal.MAX_SZ
-        self.yogam_sunrise = [None] * temporal.MAX_SZ
+        self.yoga_data = [None] * temporal.MAX_SZ
+        self.yoga_sunrise = [None] * temporal.MAX_SZ
         self.karanam_data = [None] * temporal.MAX_SZ
         self.rashi_data = [None] * temporal.MAX_SZ
-        self.lagna_data = [None] * temporal.MAX_SZ
+
+        if compute_lagnams:
+            self.lagna_data = [None] * temporal.MAX_SZ
 
         self.weekday = [None] * temporal.MAX_SZ
-        self.kaalas = [dict() for _x in range(temporal.MAX_SZ)]
         daily_panchaangas: List[daily.DailyPanchanga] = [None] * temporal.MAX_SZ
 
         # Computing solar month details for Dec 31
@@ -169,19 +170,45 @@ class Panchangam(common.JsonObject):
 
             self.solar_month_day[d] = solar_month_day
 
-            self.kaalas[d] = daily_panchaangas[d].get_kaalas()
 
             # Compute all the anga datas
             self.tithi_data[d] = daily_panchaangas[d].tithi_data
             self.tithi_sunrise[d] = daily_panchaangas[d].tithi_at_sunrise
             self.nakshatram_data[d] = daily_panchaangas[d].nakshatram_data
             self.nakshatram_sunrise[d] = daily_panchaangas[d].nakshatram_at_sunrise
-            self.yogam_data[d] = daily_panchaangas[d].yogam_data
-            self.yogam_sunrise[d] = daily_panchaangas[d].yogam_at_sunrise
+            self.yoga_data[d] = daily_panchaangas[d].yoga_data
+            self.yoga_sunrise[d] = daily_panchaangas[d].yoga_at_sunrise
             self.karanam_data[d] = daily_panchaangas[d].karanam_data
             self.rashi_data[d] = daily_panchaangas[d].rashi_data
             if compute_lagnams:
-                self.lagna_data[d] = daily_panchaangas[d].get_lagna_data(self.jd_sunrise[d])
+                self.lagna_data[d] = daily_panchaangas[d].get_lagna_data()
+
+    def get_kaalas(self):
+        YAMAGANDA_OCTETS = [4, 3, 2, 1, 0, 6, 5]
+        RAHUKALA_OCTETS = [7, 1, 6, 4, 5, 3, 2]
+        GULIKAKALA_OCTETS = [6, 5, 4, 3, 2, 1, 0]
+        self.kaalas = [dict() for _x in range(temporal.MAX_SZ)]
+        for d in range(1, temporal.MAX_DAYS_PER_YEAR):
+            self.kaalas[d] = {
+                'braahma': temporal.get_kaalas(self.jd_sunset[d - 1], self.jd_sunrise[d], 13, 15),
+                'prAtaH sandhyA': temporal.get_kaalas(self.jd_sunset[d - 1], self.jd_sunrise[d], 14, 15),
+                'prAtaH sandhyA end': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], 4, 15),
+                'prAtah': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], 0, 5),
+                'saGgava': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], 1, 5),
+                'madhyAhna': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], 2, 5),
+                'mAdhyAhnika sandhyA': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], 5, 15),
+                'mAdhyAhnika sandhyA end': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], 13, 15),
+                'aparAhna': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], 3, 5),
+                'sAyAhna': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], 4, 5),
+                'sAyaM sandhyA': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], 14, 15),
+                'sAyaM sandhyA end': temporal.get_kaalas(self.jd_sunset[d], self.jd_sunrise[d + 1], 1, 15),
+                'rAtri yAma 1': temporal.get_kaalas(self.jd_sunset[d], self.jd_sunrise[d + 1], 1, 4),
+                'zayana': temporal.get_kaalas(self.jd_sunset[d], self.jd_sunrise[d + 1], 3, 8),
+                'dinAnta': temporal.get_kaalas(self.jd_sunset[d], self.jd_sunrise[d + 1], 5, 8),
+                'rahu': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], RAHUKALA_OCTETS[self.weekday[d]], 8),
+                'yama': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], YAMAGANDA_OCTETS[self.weekday[d]], 8),
+                'gulika': temporal.get_kaalas(self.jd_sunrise[d], self.jd_sunset[d], GULIKAKALA_OCTETS[self.weekday[d]], 8)
+            }
 
     def assignLunarMonths(self):
         last_d_assigned = 0
@@ -703,12 +730,10 @@ class Panchangam(common.JsonObject):
             if self.solar_month[d] == 1 and self.solar_month_day[d] == 10:
                 agni_jd_start, dummy = temporal.get_angam_span(
                     self.jd_sunrise[d], self.jd_sunrise[d] + 30,
-                    {'arc_len': 360.0 / 108.0, 'w_moon': 0, 'w_sun': 1}, 7, ayanamsha_id=self.ayanamsha_id)
-                # sys.stderr.write('Agni Start: %s\n' % revjul(agni_jd_start + (5.5 / 24.0)))
+                    temporal.SOLAR_NAKSH_PADA, 7, ayanamsha_id=self.ayanamsha_id)
                 dummy, agni_jd_end = temporal.get_angam_span(
                     agni_jd_start, agni_jd_start + 30,
-                    {'arc_len': 360.0 / 108.0, 'w_moon': 0, 'w_sun': 1}, 13, ayanamsha_id=self.ayanamsha_id)
-                # sys.stderr.write('Agni End: %s\n' % revjul(agni_jd_end + (5.5 / 24.0)))
+                    temporal.SOLAR_NAKSH_PADA, 13, ayanamsha_id=self.ayanamsha_id)
 
             if self.solar_month[d] == 1 and self.solar_month_day[d] > 10:
                 if self.jd_sunset[d] < agni_jd_start < self.jd_sunset[d + 1]:
@@ -803,7 +828,7 @@ class Panchangam(common.JsonObject):
 
             # AYUSHMAN BAVA SAUMYA
             if self.weekday[d] == 3 and temporal.get_angam(self.jd_sunrise[d],
-                                                           temporal.YOGAM,
+                                                           temporal.YOGA,
                                                            ayanamsha_id=self.ayanamsha_id) == 3:
                 if temporal.get_angam(self.jd_sunrise[d], temporal.KARANAM,
                                       ayanamsha_id=self.ayanamsha_id) in list(range(2, 52, 7)):
@@ -812,7 +837,7 @@ class Panchangam(common.JsonObject):
             # VYATIPATAM
             if temporal.get_yoga(self.jd_sunrise[d], ayanamsha_id=self.ayanamsha_id) == 17 and \
                     self.solar_month[d] in [6, 9]:
-                yogams_yest = self.get_angams_for_kaalas(d - 1, temporal.get_yoga, 'madhyaahna')
+                yogas_yest = self.get_angams_for_kaalas(d - 1, temporal.get_yoga, 'madhyaahna')
                 if self.solar_month[d] == 9:
                     festival_name = 'mahAdhanurvyatIpAtam'
                 elif self.solar_month[d] == 6:
@@ -820,7 +845,7 @@ class Panchangam(common.JsonObject):
                 else:
                     # Can be used later, for marking Shannavati Tarpana days
                     festival_name = 'vyatIpAtam'
-                if yogams_yest[0] == 17 or yogams_yest[1] == 17:
+                if yogas_yest[0] == 17 or yogas_yest[1] == 17:
                     self.add_festival(festival_name, d - 1, debug_festivals)
                 else:
                     self.add_festival(festival_name, d, debug_festivals)
@@ -909,7 +934,7 @@ class Panchangam(common.JsonObject):
                     if self.weekday[d] == 6:
                         vtr_name = 'mahA' + vtr_name
                         if temporal.get_angam(self.jd_sunrise[d],
-                                              temporal.YOGAM,
+                                              temporal.YOGA,
                                               ayanamsha_id=self.ayanamsha_id) == 23:
                             pref = 'mahA' + vtr_name
                     self.add_festival(vtr_name, d, debug_festivals)
@@ -926,7 +951,7 @@ class Panchangam(common.JsonObject):
             # 4th pada of vyatipatam, 1st pada of Amavasya, 2nd pada of Shravana, Suryodaya, Bhanuvasara = Ardhodayam
             # 4th pada of vyatipatam, 1st pada of Amavasya, 2nd pada of Shravana, Suryodaya, Somavasara = Mahodayam
             if self.lunar_month[d] in [10, 11] and self.tithi_sunrise[d] == 30 or temporal.get_tithi(self.jd_sunset[d], ayanamsha_id=self.ayanamsha_id) == 30:
-                if (temporal.get_angam(self.jd_sunrise[d], temporal.YOGAM, ayanamsha_id=self.ayanamsha_id) == 17 or temporal.get_angam(self.jd_sunset[d], temporal.YOGAM, ayanamsha_id=self.ayanamsha_id) == 17) and \
+                if (temporal.get_angam(self.jd_sunrise[d], temporal.YOGA, ayanamsha_id=self.ayanamsha_id) == 17 or temporal.get_angam(self.jd_sunset[d], temporal.YOGA, ayanamsha_id=self.ayanamsha_id) == 17) and \
                         (temporal.get_angam(self.jd_sunrise[d], temporal.NAKSHATRAM, ayanamsha_id=self.ayanamsha_id) == 22 or temporal.get_angam(self.jd_sunset[d], temporal.NAKSHATRAM, ayanamsha_id=self.ayanamsha_id) == 22):
                     if self.weekday[d] == 1:
                         festival_name = 'mahOdaya-puNyakAlaH'
@@ -943,7 +968,7 @@ class Panchangam(common.JsonObject):
             # व्यतीपाताख्ययोगोऽयं शतार्कग्रहसन्निभः ॥
             # “In Mahabharata, if on a Sunday, Amavasya and one of the stars –
             # Sravanam, Asvini, Avittam, Tiruvadirai or Ayilyam, occurs, then it is called ‘Vyatipatam’.
-            # This Vyatipata yogam is equal to a hundred Surya grahanas in merit.”
+            # This Vyatipata yoga is equal to a hundred Surya grahanas in merit.”
             tithi_sunset = temporal.get_angam(self.jd_sunset[d], temporal.TITHI, ayanamsha_id=self.ayanamsha_id)
             if self.weekday[d] == 0 and (self.tithi_sunrise[d] == 30 or tithi_sunset == 30):
                 # AMAVASYA on a Sunday
@@ -1088,8 +1113,8 @@ class Panchangam(common.JsonObject):
                         angam_sunrise = self.nakshatram_sunrise
                         get_angam_func = temporal.get_nakshatram
                         num_angams = 27
-                    elif angam_type == 'yogam':
-                        angam_sunrise = self.yogam_sunrise
+                    elif angam_type == 'yoga':
+                        angam_sunrise = self.yoga_sunrise
                         get_angam_func = temporal.get_yoga
                         num_angams = 27
                     else:
@@ -1263,6 +1288,9 @@ class Panchangam(common.JsonObject):
             logging.error('tripurOtsavaH not in self.fest_days!')
         else:
             if self.fest_days['tripurOtsavaH'] != self.fest_days['mahA~kArtikI']:
+                logging.debug(self.fest_days['tripurOtsavaH'])
+                logging.debug(self.fest_days['mahA~kArtikI'])
+                logging.warning('Removing mahA~kArtikI')
                 del self.fest_days['mahA~kArtikI']
                 # An error here implies the festivals were not assigned: adhika
                 # mAsa calc errors??
@@ -1309,11 +1337,64 @@ class Panchangam(common.JsonObject):
                 self.festivals[self.fest_days[festival_name][j]].append(festival_name)
 
         # def check_festivals(self):
+        last_day_yr = (datetime(self.year + 1, 1, 1) - datetime(self.year, 1, 1)).days
+        solar_month_9_tithis = []
+        solar_month_9_nakshatrams = []
+        for d in range(1, last_day_yr + 1):
+            if self.solar_month[d] == 9:
+                for [n, n_end] in self.nakshatram_data[d]:
+                    solar_month_9_nakshatrams.append(n)
+                for [t, t_end] in self.tithi_data[d]:
+                    solar_month_9_tithis.append(t)
+        lunar_month_9_tithis = []
+        lunar_month_9_nakshatrams = []
+        for d in range(1, last_day_yr + 1):
+            if self.lunar_month[d] == 9:
+                for [n, n_end] in self.nakshatram_data[d]:
+                    lunar_month_9_nakshatrams.append(n)
+                for [t, t_end] in self.tithi_data[d]:
+                    lunar_month_9_tithis.append(t)
+        lunar_month_10_tithis = []
+        lunar_month_10_nakshatrams = []
+        for d in range(1, last_day_yr + 1):
+            if self.lunar_month[d] == 10:
+                for [n, n_end] in self.nakshatram_data[d]:
+                    lunar_month_10_nakshatrams.append(n)
+                for [t, t_end] in self.tithi_data[d]:
+                    lunar_month_10_tithis.append(t)
+
         festival_rules = read_old_festival_rules_dict(os.path.join(CODE_ROOT, 'panchangam/data/festival_rules.json'))
         for festival_name in festival_rules:
             result = [(key, value) for key, value in self.fest_days.items() if key.startswith(festival_name)]
             if len(result) == 0:
-                logging.warning('Unable to assign day for %s' % festival_name)
+                if festival_rules[festival_name]['month_type'] == 'lunar_month':
+                    if festival_rules[festival_name]['angam_type'] == 'nakshatram':
+                        if festival_rules[festival_name]['month_number'] == 9:
+                            if festival_rules[festival_name]['angam_number'] not in lunar_month_9_nakshatrams:
+                                logging.warning('No occurrence of %s in this calendar year!' % festival_name)
+                        elif festival_rules[festival_name]['month_number'] == 10:
+                            if festival_rules[festival_name]['angam_number'] not in lunar_month_10_nakshatrams:
+                                logging.warning('No occurrence of %s in this calendar year!' % festival_name)
+                        else:
+                            logging.warning('Unable to assign day for %s' % festival_name)
+                    elif festival_rules[festival_name]['angam_type'] == 'tithi':
+                        if festival_rules[festival_name]['month_number'] == 9:
+                            if festival_rules[festival_name]['angam_number'] not in lunar_month_9_tithis:
+                                logging.warning('No occurrence of %s in this calendar year!' % festival_name)
+                        elif festival_rules[festival_name]['month_number'] == 10:
+                            if festival_rules[festival_name]['angam_number'] not in lunar_month_10_tithis:
+                                logging.warning('No occurrence of %s in this calendar year!' % festival_name)
+                        else:
+                            logging.warning('Unable to assign day for %s' % festival_name)
+                elif festival_rules[festival_name]['month_type'] == 'solar_month':
+                    if festival_rules[festival_name]['angam_type'] == 'nakshatram':
+                        if festival_rules[festival_name]['angam_number'] not in solar_month_9_nakshatrams:
+                            logging.warning('No occurrence of %s in this calendar year!' % festival_name)
+                    elif festival_rules[festival_name]['angam_type'] == 'tithi':
+                        if festival_rules[festival_name]['angam_number'] not in solar_month_9_tithis:
+                            logging.warning('No occurrence of %s in this calendar year!' % festival_name)
+
+                # logging.debug((festival_rules[festival_name], self.tithi_sunrise[last_day_yr], self.lunar_month[last_day_yr], self.nakshatram_sunrise[last_day_yr], self.solar_month[1]))
 
     def compute_solar_eclipses(self):
         # Set location

@@ -64,6 +64,8 @@ def writeDailyTeX(panchangam, template_file, compute_lagnams=True, output_stream
     print('\\end{center}', file=output_stream)
     print('\\clearpage', file=output_stream)
 
+    panchangam.get_kaalas()
+
     for d in range(1, jyotisha.panchangam.temporal.MAX_SZ - 1):
 
         [y, m, dt, t] = swe.revjul(panchangam.jd_start_utc + d - 1)
@@ -119,28 +121,28 @@ def writeDailyTeX(panchangam, template_file, compute_lagnams=True, output_stream
                                  (rashi_data_str, rashi,
                                   jyotisha.panchangam.temporal.Time(24 * (rashi_end_jd - jd)).toString(format=panchangam.fmt))
         if compute_lagnams:
-            lagna_data_str = 'लग्नः–'
+            lagna_data_str = 'लग्नम्–'
             for lagna_ID, lagna_end_jd in panchangam.lagna_data[d]:
                 lagna = jyotisha.panchangam.temporal.NAMES['RASHI_NAMES'][panchangam.script][lagna_ID]
-                lagna_data_str = '%s \\mbox{%s \\RIGHTarrow \\textsf{%s}}' % \
+                lagna_data_str = '%s\\mbox{%s\\RIGHTarrow\\textsf{%s}} ' % \
                                  (lagna_data_str, lagna,
                                   jyotisha.panchangam.temporal.Time(24 * (lagna_end_jd - jd)).toString(format=panchangam.fmt))
 
-        yogam_data_str = ''
-        for yogam_ID, yogam_end_jd in panchangam.yogam_data[d]:
-            # if yogam_data_str != '':
-            #     yogam_data_str += '\\hspace{1ex}'
-            yogam = jyotisha.panchangam.temporal.NAMES['YOGAM_NAMES'][panchangam.script][yogam_ID]
-            if yogam_end_jd is None:
-                yogam_data_str = '%s\\mbox{%s\\To{}%s}' % \
-                                 (yogam_data_str, yogam, jyotisha.custom_transliteration.tr('ahOrAtram', panchangam.script))
+        yoga_data_str = ''
+        for yoga_ID, yoga_end_jd in panchangam.yoga_data[d]:
+            # if yoga_data_str != '':
+            #     yoga_data_str += '\\hspace{1ex}'
+            yoga = jyotisha.panchangam.temporal.NAMES['YOGA_NAMES'][panchangam.script][yoga_ID]
+            if yoga_end_jd is None:
+                yoga_data_str = '%s\\mbox{%s\\To{}%s}' % \
+                                 (yoga_data_str, yoga, jyotisha.custom_transliteration.tr('ahOrAtram', panchangam.script))
             else:
-                yogam_data_str = '%s\\mbox{%s\\To{}\\textsf{%s%s}}' % \
-                                 (yogam_data_str, yogam,
-                                  jyotisha.panchangam.temporal.Time(24 * (yogam_end_jd - jd)).toString(format=panchangam.fmt),
+                yoga_data_str = '%s\\mbox{%s\\To{}\\textsf{%s%s}}' % \
+                                 (yoga_data_str, yoga,
+                                  jyotisha.panchangam.temporal.Time(24 * (yoga_end_jd - jd)).toString(format=panchangam.fmt),
                                   '\\hspace{1ex}')
-        if yogam_end_jd is not None:
-            yogam_data_str += '\\mbox{%s\\Too{}}' % (jyotisha.panchangam.temporal.NAMES['YOGAM_NAMES'][panchangam.script][(yogam_ID % 27) + 1])
+        if yoga_end_jd is not None:
+            yoga_data_str += '\\mbox{%s\\Too{}}' % (jyotisha.panchangam.temporal.NAMES['YOGA_NAMES'][panchangam.script][(yoga_ID % 27) + 1])
 
         karanam_data_str = ''
         for numKaranam, (karanam_ID, karanam_end_jd) in enumerate(panchangam.karanam_data[d]):
@@ -163,6 +165,8 @@ def writeDailyTeX(panchangam, template_file, compute_lagnams=True, output_stream
         moonrise = jyotisha.panchangam.temporal.Time(24 * (panchangam.jd_moonrise[d] - jd)).toString(format=panchangam.fmt)
         moonset = jyotisha.panchangam.temporal.Time(24 * (panchangam.jd_moonset[d] - jd)).toString(format=panchangam.fmt)
 
+
+        braahma = jyotisha.panchangam.temporal.Time(24 * (panchangam.kaalas[d]['braahma'][0] - jd)).toString(format=panchangam.fmt)
         pratahsandhya = jyotisha.panchangam.temporal.Time(24 * (panchangam.kaalas[d]['prAtaH sandhyA'][0] - jd)).toString(format=panchangam.fmt)
         pratahsandhya_end = jyotisha.panchangam.temporal.Time(24 * (panchangam.kaalas[d]['prAtaH sandhyA end'][0] - jd)).toString(format=panchangam.fmt)
         sangava = jyotisha.panchangam.temporal.Time(24 * (panchangam.kaalas[d]['saGgava'][0] - jd)).toString(format=panchangam.fmt)
@@ -219,19 +223,19 @@ def writeDailyTeX(panchangam, template_file, compute_lagnams=True, output_stream
         else:
           print('{\\sunmoondata{%s}{%s}{%s}{%s}' % (sunrise, sunset, moonrise, moonset), file=output_stream)
 
-        print('{\kalas{%s %s %s %s %s %s %s %s %s %s %s %s %s}}}' % (pratahsandhya, pratahsandhya_end,
+        print('{\kalas{%s %s %s %s %s %s %s %s %s %s %s %s %s %s}}}' % (braahma, pratahsandhya, pratahsandhya_end,
                                                                      sangava,
                                                                      madhyahnika_sandhya, madhyahnika_sandhya_end,
                                                                      madhyaahna, aparahna, sayahna,
                                                                      sayamsandhya, sayamsandhya_end,
                                                                      ratriyama1, sayana_time, dinanta), file=output_stream)
         if compute_lagnams:
-            print('{\\tnykdata{%s}%%\n{%s}{%s}%%\n{%s}%%\n{%s}{\\tiny %s}\n}'
-                  % (tithi_data_str, nakshatram_data_str, rashi_data_str, yogam_data_str,
+            print('{\\tnykdata{%s}%%\n{%s}{%s}%%\n{%s}%%\n{%s}{\\scriptsize %s}\n}'
+                  % (tithi_data_str, nakshatram_data_str, rashi_data_str, yoga_data_str,
                      karanam_data_str, lagna_data_str), file=output_stream)
         else:
-            print('{\\tnykdata{%s}%%\n{%s}{%s}%%\n{%s}%%\n{%s}{\\tiny %s}\n}'
-                  % (tithi_data_str, nakshatram_data_str, rashi_data_str, yogam_data_str,
+            print('{\\tnykdata{%s}%%\n{%s}{%s}%%\n{%s}%%\n{%s}{\\scriptsize %s}\n}'
+                  % (tithi_data_str, nakshatram_data_str, rashi_data_str, yoga_data_str,
                      karanam_data_str, ''), file=output_stream)
         print('{\\rygdata{%s}{%s}{%s}}' % (rahu, yama, gulika), file=output_stream)
 

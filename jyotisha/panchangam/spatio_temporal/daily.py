@@ -58,8 +58,8 @@ class DailyPanchanga(common.JsonObject):
         self.tithi_at_sunrise = None
         self.nakshatram_data = None
         self.nakshatram_at_sunrise = None
-        self.yogam_data = None
-        self.yogam_at_sunrise = None
+        self.yoga_data = None
+        self.yoga_at_sunrise = None
         self.karanam_data = None
         self.rashi_data = None
 
@@ -119,8 +119,8 @@ class DailyPanchanga(common.JsonObject):
         self.tithi_at_sunrise = self.tithi_data[0][0]
         self.nakshatram_data = temporal.get_angam_data(self.jd_sunrise, self.jd_next_sunrise, temporal.NAKSHATRAM, ayanamsha_id=self.ayanamsha_id)
         self.nakshatram_at_sunrise = self.nakshatram_data[0][0]
-        self.yogam_data = temporal.get_angam_data(self.jd_sunrise, self.jd_next_sunrise, temporal.YOGAM, ayanamsha_id=self.ayanamsha_id)
-        self.yogam_at_sunrise = self.yogam_data[0][0]
+        self.yoga_data = temporal.get_angam_data(self.jd_sunrise, self.jd_next_sunrise, temporal.YOGA, ayanamsha_id=self.ayanamsha_id)
+        self.yoga_at_sunrise = self.yoga_data[0][0]
         self.karanam_data = temporal.get_angam_data(self.jd_sunrise, self.jd_next_sunrise, temporal.KARANAM, ayanamsha_id=self.ayanamsha_id)
         self.rashi_data = temporal.get_angam_data(self.jd_sunrise, self.jd_next_sunrise, temporal.RASHI, ayanamsha_id=self.ayanamsha_id)
 
@@ -209,10 +209,11 @@ class DailyPanchanga(common.JsonObject):
             return lcalc / 30
 
         else:
-            if (debug):
-                print('offset:', offset)
-                print('lcalc/30', lcalc / 30)
-                print('lcalc/30 + offset = ', lcalc / 30 + offset)
+            if debug:
+                logging.debug(debug)
+                logging.debug(('offset:', offset))
+                logging.debug(('lcalc/30', lcalc / 30))
+                logging.debug(('lcalc/30 + offset = ', lcalc / 30 + offset))
 
             # The max expected value is somewhere between 2 and -2, with bracketing
 
@@ -249,9 +250,9 @@ class DailyPanchanga(common.JsonObject):
         for lagna in lagna_list:
             # print('---\n', lagna)
             if (debug):
-                print('lagna sunrise', self.get_lagna_float(self.jd_sunrise))
-                print('lbrack', self.get_lagna_float(lbrack, int(-lagna)))
-                print('rbrack', self.get_lagna_float(rbrack, int(-lagna)))
+                logging.debug(('lagna sunrise', self.get_lagna_float(self.jd_sunrise)))
+                logging.debug(('lbrack', self.get_lagna_float(lbrack, int(-lagna))))
+                logging.debug(('rbrack', self.get_lagna_float(rbrack, int(-lagna))))
 
             lagna_end_time = brentq(self.get_lagna_float, lbrack, rbrack,
                                     args=(-lagna, debug))
@@ -272,6 +273,7 @@ class DailyPanchanga(common.JsonObject):
         RAHUKALA_OCTETS = [7, 1, 6, 4, 5, 3, 2]
         GULIKAKALA_OCTETS = [6, 5, 4, 3, 2, 1, 0]
         self.kaalas = {
+            'braahma': temporal.get_kaalas(self.jd_previous_sunset, self.jd_sunrise, 13, 15),
             'prAtaH sandhyA': temporal.get_kaalas(self.jd_previous_sunset, self.jd_sunrise, 14, 15),
             'prAtaH sandhyA end': temporal.get_kaalas(self.jd_sunrise, self.jd_sunset, 4, 15),
             'prAtah': temporal.get_kaalas(self.jd_sunrise, self.jd_sunset, 0, 5),
